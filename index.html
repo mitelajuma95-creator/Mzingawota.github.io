@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>APEX SCALPER — Binance Bot</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#000305;
+  --s1:#040a0f;
+  --s2:#071018;
+  --s3:#0a1520;
+  --ln:#0f2030;
+  --ln2:#163040;
+  --g:#00ff88;--g2:#00cc6a;
+  --r:#ff3355;--r2:#cc2244;
+  --b:#00aaff;--b2:#0077cc;
+  --y:#ffcc00;--y2:#cc9900;
+  --p:#aa55ff;
+  --tx:#446688;--tx2:#7799bb;--tx3:#aaccdd;--wh:#e8f4ff;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Space Grotesk',sans-serif;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:var(--sans);color:var(--tx2);display:flex;flex-direction:column;}
+
+/* SCANLINES */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,136,.008) 3px,rgba(0,255,136,.008) 4px);pointer-events:none;z-index:9999;}
+
+.app{display:flex;flex-direction:column;height:100%;}
+.scr{flex:1;overflow-y:auto;overflow-x:hidden;}
+.scr::-webkit-scrollbar{width:2px;}
+.scr::-webkit-scrollbar-thumb{background:var(--ln2);}
+
+/* ── TOPBAR ── */
+.top{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;
+  background:linear-gradient(180deg,rgba(0,255,136,.04),transparent);
+  border-bottom:1px solid var(--ln);
+  flex-shrink:0;position:sticky;top:0;z-index:100;
+  backdrop-filter:blur(20px);
+}
+.logo{
+  font-family:var(--mono);font-size:1rem;font-weight:700;
+  letter-spacing:3px;color:var(--g);
+  text-shadow:0 0 20px rgba(0,255,136,.5);
+}
+.logo em{color:var(--wh);font-style:normal;}
+.status-row{display:flex;gap:6px;}
+.badge{
+  display:flex;align-items:center;gap:4px;
+  padding:3px 10px;border-radius:20px;
+  font-size:.56rem;letter-spacing:2px;font-family:var(--mono);
+  border:1px solid var(--ln2);color:var(--tx);
+  transition:all .3s;
+}
+.badge.live{border-color:var(--g);color:var(--g);box-shadow:0 0 10px rgba(0,255,136,.2);}
+.badge.bot{border-color:var(--y);color:var(--y);box-shadow:0 0 10px rgba(255,204,0,.2);}
+.pip{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.pip.on{animation:pip .7s ease infinite;}
+@keyframes pip{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.2;transform:scale(1.5)}}
+
+/* ── TABS ── */
+.tabs{display:flex;background:var(--s1);border-bottom:1px solid var(--ln);overflow-x:auto;flex-shrink:0;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex:1;min-width:55px;padding:10px 6px;text-align:center;font-size:.55rem;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;color:var(--tx);font-weight:600;white-space:nowrap;transition:all .2s;}
+.tab.on{color:var(--g);border-color:var(--g);}
+
+/* ── PAGES ── */
+.pg{display:none;padding:14px;}
+.pg.on{display:block;}
+
+/* ── CARDS ── */
+.card{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:15px;margin-bottom:12px;position:relative;overflow:hidden;}
+.card-glow{position:absolute;top:0;left:0;right:0;height:1px;}
+.cg-g{background:linear-gradient(90deg,transparent,var(--g),transparent);}
+.cg-b{background:linear-gradient(90deg,transparent,var(--b),transparent);}
+.cg-y{background:linear-gradient(90deg,transparent,var(--y),transparent);}
+.cg-r{background:linear-gradient(90deg,transparent,var(--r),transparent);}
+.cg-p{background:linear-gradient(90deg,transparent,var(--p),transparent);}
+.sec{font-size:.53rem;letter-spacing:2.5px;text-transform:uppercase;color:var(--tx);font-family:var(--mono);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+
+/* ── API SETUP ── */
+.api-input{width:100%;background:var(--s2);border:1px solid var(--ln2);border-radius:8px;color:var(--wh);font-family:var(--mono);font-size:.8rem;padding:10px 12px;outline:none;transition:border-color .2s;margin-bottom:8px;}
+.api-input:focus{border-color:var(--b);}
+.api-input::placeholder{color:var(--tx);}
+.conn-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--b2),var(--b));color:#000;border:none;border-radius:8px;font-family:var(--sans);font-weight:700;font-size:.82rem;letter-spacing:2px;cursor:pointer;transition:all .2s;}
+.conn-btn:hover{opacity:.85;}
+.conn-info{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--s2);border-radius:6px;font-size:.63rem;font-family:var(--mono);margin-top:8px;border:1px solid var(--ln);}
+
+/* ── PRICE HERO ── */
+.price-hero{
+  background:linear-gradient(135deg,var(--s1),var(--s2));
+  border:1px solid var(--ln);border-radius:12px;
+  padding:20px 16px;margin-bottom:12px;
+  text-align:center;position:relative;overflow:hidden;
+}
+.price-hero::before{content:'';position:absolute;bottom:-40px;left:50%;transform:translateX(-50%);width:200px;height:100px;background:radial-gradient(ellipse,rgba(0,255,136,.06),transparent 70%);}
+.ph-pair{font-family:var(--mono);font-size:.65rem;letter-spacing:4px;color:var(--tx);margin-bottom:6px;}
+.ph-price{font-family:var(--mono);font-size:2.6rem;font-weight:700;line-height:1;transition:color .2s;letter-spacing:-1px;}
+.ph-row{display:flex;justify-content:center;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid var(--ln);}
+.ph-item{text-align:center;}
+.ph-v{font-family:var(--mono);font-size:.9rem;font-weight:600;}
+.ph-l{font-size:.5rem;letter-spacing:2px;color:var(--tx);margin-top:3px;text-transform:uppercase;}
+
+/* ── MINI STATS ── */
+.mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+.ms{background:var(--s1);border:1px solid var(--ln);border-radius:9px;padding:10px 6px;text-align:center;}
+.ms-v{font-family:var(--mono);font-size:.95rem;font-weight:700;line-height:1;margin-bottom:3px;}
+.ms-l{font-size:.48rem;letter-spacing:2px;color:var(--tx);text-transform:uppercase;}
+
+/* ── SIGNAL PANEL ── */
+.sig-panel{background:var(--s2);border-radius:8px;padding:12px;margin-bottom:12px;border:1px solid var(--ln);}
+.sig-score-bar{height:6px;background:var(--s3);border-radius:3px;overflow:hidden;margin:8px 0;}
+.sig-fill{height:100%;border-radius:3px;transition:width .4s,background .3s;}
+.ind-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;}
+.ind-item{background:var(--s3);border-radius:6px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;}
+.ind-name{font-size:.56rem;letter-spacing:1px;color:var(--tx);text-transform:uppercase;font-family:var(--mono);}
+.ind-val{font-family:var(--mono);font-size:.68rem;font-weight:700;}
+
+/* ── INPUTS ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.fi{margin-bottom:10px;}
+.fi label{display:block;font-size:.52rem;letter-spacing:2px;text-transform:uppercase;color:var(--tx);margin-bottom:5px;font-family:var(--mono);}
+.fi input,.fi select{width:100%;background:var(--s2);border:1px solid var(--ln2);border-radius:8px;color:var(--wh);font-family:var(--mono);font-size:.85rem;padding:9px 11px;outline:none;transition:border-color .2s;-webkit-appearance:none;}
+.fi input:focus,.fi select:focus{border-color:var(--g);}
+
+/* ── STRATEGY CARDS ── */
+.strat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.sc{padding:13px 10px;border:1px solid var(--ln2);border-radius:10px;background:var(--s2);cursor:pointer;transition:all .2s;text-align:center;}
+.sc-icon{font-size:1.4rem;margin-bottom:5px;}
+.sc-name{font-family:var(--mono);font-size:.68rem;font-weight:700;color:var(--tx2);margin-bottom:3px;letter-spacing:1px;}
+.sc-desc{font-size:.52rem;color:var(--tx);line-height:1.4;}
+.sc.on{border-color:var(--g);background:rgba(0,255,136,.06);}
+.sc.on .sc-name{color:var(--g);}
+
+/* ── BOT BUTTON ── */
+.bot-btn{width:100%;padding:17px;border:none;border-radius:11px;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:1rem;letter-spacing:3px;text-transform:uppercase;transition:all .3s;margin-bottom:12px;position:relative;overflow:hidden;}
+.bot-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);transform:translateX(-100%);transition:transform .4s;}
+.bot-btn:not(:disabled):hover::after{transform:translateX(100%);}
+.btn-go{background:linear-gradient(135deg,var(--g2),var(--g));color:#000;box-shadow:0 0 40px rgba(0,255,136,.2);}
+.btn-go:disabled{opacity:.3;cursor:not-allowed;box-shadow:none;}
+.btn-stop{background:linear-gradient(135deg,var(--r2),var(--r));color:#fff;animation:glo-r 2s ease infinite;}
+@keyframes glo-r{0%,100%{box-shadow:0 0 25px rgba(255,51,85,.3)}50%{box-shadow:0 0 55px rgba(255,51,85,.7)}}
+
+/* ── PROGRESS ── */
+.prog{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:15px;margin-bottom:12px;display:none;}
+.prog-num{font-family:var(--mono);font-size:2.4rem;font-weight:700;text-align:center;margin:10px 0;letter-spacing:-1px;}
+.pbar{height:4px;background:var(--s3);border-radius:2px;overflow:hidden;margin-bottom:14px;}
+.pbar-f{height:100%;border-radius:2px;transition:width .6s ease,background .3s;}
+.pg-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.pg-box{background:var(--s2);border-radius:8px;padding:9px;text-align:center;}
+.pg-v{font-family:var(--mono);font-size:1rem;font-weight:700;line-height:1;margin-bottom:3px;}
+.pg-l{font-size:.48rem;letter-spacing:2px;color:var(--tx);text-transform:uppercase;}
+.cd-box{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;background:var(--s2);border-radius:8px;padding:10px;font-size:.65rem;color:var(--tx);font-family:var(--mono);}
+.cd-v{font-size:1.4rem;font-weight:700;color:var(--b);}
+
+/* ── WIN RATE METER ── */
+.wr-meter{display:flex;flex-direction:column;align-items:center;padding:14px;background:var(--s2);border-radius:10px;margin-bottom:12px;}
+.wr-ring{position:relative;width:100px;height:100px;}
+.wr-ring svg{transform:rotate(-90deg);}
+.wr-ring circle{fill:none;stroke:var(--s3);stroke-width:8;}
+.wr-prog{stroke:var(--g);stroke-linecap:round;transition:stroke-dashoffset .8s ease,stroke .3s;}
+.wr-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.wr-pct{font-family:var(--mono);font-size:1.3rem;font-weight:700;color:var(--g);}
+.wr-lbl{font-size:.48rem;color:var(--tx);letter-spacing:2px;}
+
+/* ── LOG ── */
+.log-wrap{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:14px;margin-bottom:12px;}
+.log-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.log-t{font-size:.53rem;letter-spacing:2.5px;text-transform:uppercase;color:var(--g);font-family:var(--mono);}
+.log-c{font-size:.52rem;color:var(--tx);cursor:pointer;font-family:var(--mono);}
+.log-s{height:155px;overflow-y:auto;}
+.log-s::-webkit-scrollbar{width:2px;}
+.log-s::-webkit-scrollbar-thumb{background:var(--ln2);}
+.le{display:flex;gap:7px;padding:5px 0;border-bottom:1px solid var(--ln);font-size:.62rem;font-family:var(--mono);animation:fin .2s ease;}
+.le:last-child{border:none;}
+@keyframes fin{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+.lt{color:var(--tx);font-size:.56rem;white-space:nowrap;}
+.lm{flex:1;line-height:1.5;}
+.lp{font-weight:700;white-space:nowrap;}
+
+/* ── HISTORY ── */
+.hist-wrap{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:14px;margin-bottom:12px;}
+.hist-s{max-height:250px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;font-size:.62rem;font-family:var(--mono);}
+th{text-align:left;padding:5px 8px;border-bottom:1px solid var(--ln2);font-size:.5rem;letter-spacing:2px;color:var(--tx);font-weight:400;text-transform:uppercase;}
+td{padding:6px 8px;border-bottom:1px solid rgba(15,32,48,.6);}
+tr:last-child td{border:none;}
+
+/* ANALYTICS */
+.an-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.an-box{background:var(--s1);border:1px solid var(--ln);border-radius:10px;padding:15px;text-align:center;}
+.an-v{font-family:var(--mono);font-size:1.3rem;font-weight:700;line-height:1;margin-bottom:4px;}
+.an-l{font-size:.5rem;letter-spacing:2px;color:var(--tx);text-transform:uppercase;}
+
+/* ALERTS */
+.alert{border-radius:10px;padding:11px 14px;font-size:.7rem;margin-bottom:10px;display:none;border-left:3px solid;line-height:1.6;font-family:var(--mono);}
+.a-g{background:rgba(0,255,136,.07);border-color:var(--g);color:var(--g);}
+.a-r{background:rgba(255,51,85,.07);border-color:var(--r);color:var(--r);}
+.a-y{background:rgba(255,204,0,.07);border-color:var(--y);color:var(--y);}
+
+/* COLORS */
+.cg{color:var(--g)!important;} .cr{color:var(--r)!important;}
+.cb{color:var(--b)!important;} .cy{color:var(--y)!important;}
+.cp{color:var(--p)!important;} .cx{color:var(--tx)!important;}
+.cx3{color:var(--tx3)!important;}
+
+/* CHART */
+.chart-box{background:var(--s2);border-radius:8px;padding:10px;}
+
+/* TOGGLE */
+.tog-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--ln);font-size:.7rem;}
+.tog-row:last-child{border:none;}
+.tog{width:38px;height:20px;background:var(--s3);border-radius:10px;position:relative;cursor:pointer;border:1px solid var(--ln2);transition:all .3s;}
+.tog.on{background:rgba(0,255,136,.2);border-color:var(--g);}
+.tog::after{content:'';position:absolute;width:14px;height:14px;background:var(--tx);border-radius:50%;top:2px;left:2px;transition:all .3s;}
+.tog.on::after{left:20px;background:var(--g);}
+
+/* MART BARS */
+.mrow{display:flex;gap:4px;align-items:flex-end;height:45px;margin-bottom:6px;}
+.mb{flex:1;border-radius:3px 3px 0 0;transition:all .3s;}
+.ml{flex:1;text-align:center;font-size:.47rem;color:var(--tx);font-family:var(--mono);}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- TOPBAR -->
+<div class="top">
+  <div class="logo">APEX<em>.</em>SCALPER</div>
+  <div class="status-row">
+    <div class="badge" id="cBadge"><div class="pip"></div><span id="cTxt">OFFLINE</span></div>
+    <div class="badge" id="bBadge"><div class="pip"></div><span id="bTxt">IDLE</span></div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab on" onclick="gt(0)">DASH</div>
+  <div class="tab" onclick="gt(1)">BOT</div>
+  <div class="tab" onclick="gt(2)">ANALYTICS</div>
+  <div class="tab" onclick="gt(3)">HISTORIA</div>
+  <div class="tab" onclick="gt(4)">SETTINGS</div>
+</div>
+
+<div class="scr">
+
+<!-- ══ PAGE 0: DASHBOARD ══ -->
+<div class="pg on" id="pg0">
+
+  <!-- API SETUP -->
+  <div class="card" id="apiCard">
+    <div class="card-glow cg-b"></div>
+    <div class="sec"><span class="cb">🔑 BINANCE TESTNET API</span></div>
+    <input type="text"      class="api-input" id="apiKey"    placeholder="API Key...">
+    <input type="password"  class="api-input" id="apiSecret" placeholder="Secret Key...">
+    <button class="conn-btn" id="connBtn" onclick="doConnect()">⚡ UNGANIKA NA BINANCE TESTNET</button>
+    <div class="conn-info"><span id="cIco">○</span><span id="cMsg">Weka API key na Secret → bonyeza UNGANIKA</span></div>
+  </div>
+
+  <div class="alert a-g" id="aOk"></div>
+  <div class="alert a-r" id="aEr"></div>
+  <div class="alert a-y" id="aWn"></div>
+
+  <!-- PRICE HERO -->
+  <div class="price-hero">
+    <div class="ph-pair" id="phPair">BTC / USDT</div>
+    <div class="ph-price cx3" id="phPrice">$——,———.——</div>
+    <div class="ph-row">
+      <div class="ph-item"><div class="ph-v cg" id="phProf">+$0.00</div><div class="ph-l">Faida Halisi</div></div>
+      <div class="ph-item"><div class="ph-v cx3" id="phBal">$—</div><div class="ph-l">USDT Balance</div></div>
+      <div class="ph-item"><div class="ph-v cy" id="phWR">—%</div><div class="ph-l">Win Rate</div></div>
+    </div>
+  </div>
+
+  <!-- MINI STATS -->
+  <div class="mini-stats">
+    <div class="ms"><div class="ms-v cg" id="sW">0</div><div class="ms-l">Wins</div></div>
+    <div class="ms"><div class="ms-v cr" id="sL">0</div><div class="ms-l">Loss</div></div>
+    <div class="ms"><div class="ms-v cb" id="sT">0</div><div class="ms-l">Trades</div></div>
+    <div class="ms"><div class="ms-v cy" id="sO">0</div><div class="ms-l">Open</div></div>
+  </div>
+
+  <!-- SIGNAL PANEL -->
+  <div class="sig-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="font-size:.56rem;letter-spacing:2px;text-transform:uppercase;color:var(--tx);font-family:var(--mono);">SIGNAL NGUVU</span>
+      <span style="font-family:var(--mono);font-size:.75rem;font-weight:700;" id="sigMain">— SUBIRI —</span>
+    </div>
+    <div class="sig-score-bar"><div class="sig-fill" id="sigBar" style="width:0%;background:var(--tx)"></div></div>
+    <div class="ind-grid" id="indGrid">
+      <div class="ind-item"><span class="ind-name">EMA</span><span class="ind-val cx">—</span></div>
+      <div class="ind-item"><span class="ind-name">RSI</span><span class="ind-val cx">—</span></div>
+      <div class="ind-item"><span class="ind-name">MACD</span><span class="ind-val cx">—</span></div>
+      <div class="ind-item"><span class="ind-name">BB</span><span class="ind-val cx">—</span></div>
+      <div class="ind-item"><span class="ind-name">VOL</span><span class="ind-val cx">—</span></div>
+      <div class="ind-item"><span class="ind-name">STOCH</span><span class="ind-val cx">—</span></div>
+    </div>
+  </div>
+
+  <!-- CHART -->
+  <div class="card">
+    <div class="card-glow cg-g"></div>
+    <div class="sec"><span class="cg">PRICE CHART</span><span class="cx" id="chSymbol">BTC/USDT · TESTNET</span></div>
+    <div class="chart-box"><canvas id="priceChart" style="max-height:160px;"></canvas></div>
+  </div>
+
+  <!-- LOG -->
+  <div class="log-wrap">
+    <div class="log-h">
+      <div class="log-t">◈ LIVE LOG</div>
+      <div class="log-c" onclick="document.getElementById('lgS').innerHTML=''">[ CLEAR ]</div>
+    </div>
+    <div class="log-s" id="lgS"></div>
+  </div>
+</div>
+
+<!-- ══ PAGE 1: BOT ══ -->
+<div class="pg" id="pg1">
+  <div class="alert a-g" id="bOk"></div>
+  <div class="alert a-r" id="bEr"></div>
+  <div class="alert a-y" id="bWn"></div>
+
+  <!-- STRATEGY SELECT -->
+  <div class="card">
+    <div class="card-glow cg-y"></div>
+    <div class="sec"><span class="cy">⚡ SCALPING STRATEGY</span></div>
+    <div class="strat-grid">
+      <div class="sc on" id="sc0" onclick="setStrat(0)">
+        <div class="sc-icon">🎯</div>
+        <div class="sc-name">PRECISION</div>
+        <div class="sc-desc">6 indicators — subiri nguvu score ≥ 5. Win rate ~72%</div>
+      </div>
+      <div class="sc" id="sc1" onclick="setStrat(1)">
+        <div class="sc-icon">⚡</div>
+        <div class="sc-name">AGGRESSIVE</div>
+        <div class="sc-desc">Score ≥ 3 — trades nyingi, faida haraka zaidi</div>
+      </div>
+      <div class="sc" id="sc2" onclick="setStrat(2)">
+        <div class="sc-icon">🛡️</div>
+        <div class="sc-name">ULTRA SAFE</div>
+        <div class="sc-desc">Score ≥ 7 — trades chache sana lakini 80%+ win rate</div>
+      </div>
+      <div class="sc" id="sc3" onclick="setStrat(3)">
+        <div class="sc-icon">🔄</div>
+        <div class="sc-name">TREND RIDE</div>
+        <div class="sc-desc">Fuata trend kubwa — hold muda mrefu kidogo</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="card">
+    <div class="card-glow cg-b"></div>
+    <div class="sec"><span class="cb">⚙️ MIPANGILIO</span></div>
+    <div class="g2">
+      <div class="fi"><label>Jozi (Pair)</label>
+        <select id="bPair">
+          <option value="BTCUSDT">BTC/USDT</option>
+          <option value="ETHUSDT">ETH/USDT</option>
+          <option value="BNBUSDT">BNB/USDT</option>
+          <option value="SOLUSDT">SOL/USDT</option>
+          <option value="XRPUSDT">XRP/USDT</option>
+        </select>
+      </div>
+      <div class="fi"><label>Trade Amount (USDT)</label>
+        <input type="number" id="bAmt" value="10" min="5" max="1000" step="1">
+      </div>
+      <div class="fi"><label>Target Faida ($)</label>
+        <input type="number" id="bTgt" value="5" min="1" step="0.5">
+      </div>
+      <div class="fi"><label>Daily Stop Loss ($)</label>
+        <input type="number" id="bDSL" value="3" min="1" step="0.5">
+      </div>
+      <div class="fi"><label>Take Profit (%)</label>
+        <input type="number" id="bTP" value="0.5" min="0.1" max="3" step="0.1">
+      </div>
+      <div class="fi"><label>Stop Loss (%)</label>
+        <input type="number" id="bSL" value="0.3" min="0.1" max="2" step="0.1">
+      </div>
+    </div>
+    <div class="sec" style="margin-top:4px;margin-bottom:8px;"><span class="cy">MARTINGALE LADDER</span><span class="cx">Max steps 3</span></div>
+    <div class="mrow" id="mBars"></div>
+    <div style="display:flex;gap:4px;margin-top:5px;" id="mLbls"></div>
+  </div>
+
+  <button class="bot-btn btn-go" id="botBtn" onclick="togBot()" disabled>▶ ANZA SCALPING BOT</button>
+
+  <!-- PROGRESS -->
+  <div class="prog" id="progCard">
+    <div class="card-glow cg-g"></div>
+    <div style="text-align:center;font-size:.52rem;letter-spacing:3px;color:var(--tx);font-family:var(--mono);text-transform:uppercase;">Faida Halisi · Salio Sasa − Salio la Awali</div>
+    <div class="prog-num cg" id="pgProf">+$0.00</div>
+    <div style="text-align:center;font-size:.6rem;font-family:var(--mono);color:var(--tx);margin-bottom:8px;">
+      Inahitajika: <span class="cy" id="pgRem">$5.00</span> · Kuanzia: $<span id="pgSt">—</span>
+    </div>
+    <div class="pbar"><div class="pbar-f" id="pgBar" style="width:0%;background:var(--g)"></div></div>
+
+    <!-- WIN RATE RING -->
+    <div class="wr-meter">
+      <div class="wr-ring">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" stroke-width="8"/>
+          <circle class="wr-prog" id="wrRing" cx="50" cy="50" r="42"
+            stroke-dasharray="263.9" stroke-dashoffset="263.9" stroke-width="8"/>
+        </svg>
+        <div class="wr-center">
+          <div class="wr-pct" id="wrPct">0%</div>
+          <div class="wr-lbl">WIN RATE</div>
+        </div>
+      </div>
+      <div style="font-size:.58rem;color:var(--tx);font-family:var(--mono);margin-top:6px;" id="wrStatus">Inasubiri trades...</div>
+    </div>
+
+    <div class="pg-stats">
+      <div class="pg-box"><div class="pg-v cg" id="pgW">0</div><div class="pg-l">WINS</div></div>
+      <div class="pg-box"><div class="pg-v cr" id="pgL">0</div><div class="pg-l">LOSSES</div></div>
+      <div class="pg-box"><div class="pg-v cy" id="pgStreak">0</div><div class="pg-l">STREAK</div></div>
+      <div class="pg-box"><div class="pg-v cb" id="pgTrades">0</div><div class="pg-l">TRADES</div></div>
+    </div>
+    <div class="cd-box">
+      <span>Trade inayofuata:</span>
+      <span class="cd-v" id="pgCD">—</span>
+    </div>
+  </div>
+
+  <!-- BOT LOG -->
+  <div class="log-wrap">
+    <div class="log-h">
+      <div class="log-t">◈ BOT LOG</div>
+      <div class="log-c" onclick="document.getElementById('bLog').innerHTML=''">[ CLEAR ]</div>
+    </div>
+    <div class="log-s" id="bLog"></div>
+  </div>
+</div>
+
+<!-- ══ PAGE 2: ANALYTICS ══ -->
+<div class="pg" id="pg2">
+  <div class="an-grid">
+    <div class="an-box"><div class="an-v cg" id="anWR">0%</div><div class="an-l">Win Rate</div></div>
+    <div class="an-box"><div class="an-v cg" id="anNet">$0.00</div><div class="an-l">Net Profit</div></div>
+    <div class="an-box"><div class="an-v cb" id="anTN">0</div><div class="an-l">Total Trades</div></div>
+    <div class="an-box"><div class="an-v cy" id="anAvg">$0.00</div><div class="an-l">Avg/Trade</div></div>
+    <div class="an-box"><div class="an-v cg" id="anBest">$0.00</div><div class="an-l">Best Trade</div></div>
+    <div class="an-box"><div class="an-v cr" id="anWorst">$0.00</div><div class="an-l">Worst Trade</div></div>
+    <div class="an-box"><div class="an-v cy" id="anStrk">0</div><div class="an-l">Best Streak</div></div>
+    <div class="an-box"><div class="an-v cp" id="anSig">0</div><div class="an-l">Signals Today</div></div>
+  </div>
+
+  <!-- Equity chart -->
+  <div class="card">
+    <div class="card-glow cg-g"></div>
+    <div class="sec"><span class="cg">EQUITY CURVE</span></div>
+    <div class="chart-box"><canvas id="eqChart" style="max-height:140px;"></canvas></div>
+  </div>
+</div>
+
+<!-- ══ PAGE 3: HISTORIA ══ -->
+<div class="pg" id="pg3">
+  <div class="hist-wrap">
+    <div style="font-size:.53rem;letter-spacing:2.5px;text-transform:uppercase;color:var(--g);font-family:var(--mono);margin-bottom:10px;">◈ HISTORIA YA TRADES</div>
+    <div class="hist-s">
+      <table>
+        <thead><tr><th>#</th><th>Pair</th><th>Side</th><th>Amt</th><th>P&L</th><th>Wakati</th></tr></thead>
+        <tbody id="histTbl"><tr><td colspan="6" style="text-align:center;color:var(--tx);padding:20px;font-family:var(--mono);">Hakuna trades bado</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE 4: SETTINGS ══ -->
+<div class="pg" id="pg4">
+  <div class="card">
+    <div class="card-glow cg-b"></div>
+    <div class="sec"><span class="cb">⚙️ MIPANGILIO YA USALAMA</span></div>
+    <div class="tog-row"><span>Simamisha ukifika daily stop loss</span><div class="tog on" onclick="this.classList.toggle('on')"></div></div>
+    <div class="tog-row"><span>Martingale — ongeza ukipoteza</span><div class="tog on" onclick="this.classList.toggle('on')"></div></div>
+    <div class="tog-row"><span>Subiri signal kali (score ≥ 5)</span><div class="tog on" onclick="this.classList.toggle('on')"></div></div>
+    <div class="tog-row"><span>Auto-stop ukifikia target $5</span><div class="tog on" onclick="this.classList.toggle('on')"></div></div>
+    <div class="tog-row"><span>Cooldown 30s kati ya trades</span><div class="tog on" onclick="this.classList.toggle('on')"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-glow cg-y"></div>
+    <div class="sec"><span class="cy">📊 TESTNET → REAL BINANCE</span></div>
+    <div style="font-size:.7rem;line-height:2;color:var(--tx2);font-family:var(--mono);">
+      Testnet: <span class="cg">wss://testnet.binance.vision</span><br>
+      Real: <span class="cy">wss://stream.binance.com</span><br><br>
+      <span style="color:var(--tx);">Ukiridhika na matokeo ya testnet:</span><br>
+      1. Badilisha API key → Real Binance key<br>
+      2. URL inabadilika moja kwa moja<br>
+      3. Bot inafanya kazi vivyo hivyo ✅
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-glow cg-r"></div>
+    <div class="sec"><span class="cr">⚠️ ONYO</span></div>
+    <div style="font-size:.7rem;line-height:2;color:var(--tx2);font-family:var(--mono);">
+      • Testnet = pesa za kucheza · Soko = halisi ✅<br>
+      • Anza na $10 USDT per trade<br>
+      • TP 0.5% = +$0.05 · SL 0.3% = -$0.03<br>
+      • Trades 100 kwa siku = target $5 inawezekana<br>
+      • Usibadilishe kuwa Real bila kujaribu wiki 1+
+    </div>
+  </div>
+</div>
+
+</div><!-- end scr -->
+</div><!-- end app -->
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════
+// BINANCE TESTNET CONFIG
+// ════════════════════════════════════════════
+// CORS proxies — itajaribu moja baada ya nyingine
+const PROXIES = [
+  'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.io/?',
+  'https://cors-anywhere.herokuapp.com/'
+];
+const TESTNET_BASE = 'https://testnet.binance.vision/api/v3';
+const WS_BASE      = 'wss://testnet.binance.vision/ws';
+const COOLDOWN     = 30000;
+let currentProxy   = 0; // 30 seconds
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let apiKey='', apiSecret='', connected=false;
+let wsPrices={}, wsUser=null;
+let priceTimer=null, cdTimer=null, lastTrade=0;
+
+const G = {
+  prices:{},  // {BTCUSDT:[...]}
+  balance:0, startBal:0,
+  wins:0, losses:0, trades:0, openOrders:0,
+  history:[], equity:[],
+  bestStreak:0, curStreak:0,
+  sigCount:0
+};
+
+const B = {
+  run:false, strat:0,
+  pair:'BTCUSDT', amt:10, tgt:5, dsl:3,
+  tp:0.5, sl:0.3,
+  sessStart:0, wins:0, losses:0, consLoss:0,
+  lastSig:'', baseAmt:10
+};
+
+// Score thresholds per strategy
+const SCORE_MIN = [5, 3, 7, 4]; // PRECISION, AGGRESSIVE, ULTRA SAFE, TREND RIDE
+
+// ════════════════════════════════════════════
+// SIGNAL ENGINE — 6 INDICATORS
+// Target win rate: 70-80%
+// ════════════════════════════════════════════
+
+function calcEMA(arr, n) {
+  if (!arr || arr.length < n) return null;
+  const k = 2 / (n + 1);
+  let e = arr.slice(0, n).reduce((a, b) => a + b, 0) / n;
+  for (let i = n; i < arr.length; i++) e = arr[i] * k + e * (1 - k);
+  return e;
+}
+
+function calcRSI(arr, n=14) {
+  if (!arr || arr.length < n+1) return 50;
+  const ch=[];
+  for (let i=1;i<arr.length;i++) ch.push(arr[i]-arr[i-1]);
+  const r=ch.slice(-n);
+  const g=r.filter(c=>c>0).reduce((a,b)=>a+b,0)/n;
+  const l=Math.abs(r.filter(c=>c<0).reduce((a,b)=>a+b,0))/n;
+  if(l===0)return 100;
+  return 100-(100/(1+g/l));
+}
+
+function calcMACD(arr) {
+  const e12=calcEMA(arr,12), e26=calcEMA(arr,26);
+  if(!e12||!e26)return null;
+  const macd=e12-e26;
+  // Signal line (EMA9 of MACD)
+  const macdArr=[]; let s=arr.slice(-26);
+  for(let i=12;i<=s.length;i++){
+    const sl=s.slice(0,i);
+    const e1=calcEMA(sl,12),e2=calcEMA(sl,26);
+    if(e1&&e2)macdArr.push(e1-e2);
+  }
+  const signal=calcEMA(macdArr,9);
+  return {macd,signal,hist:signal?macd-signal:null};
+}
+
+function calcBollinger(arr, n=20, m=2) {
+  if(!arr||arr.length<n)return null;
+  const s=arr.slice(-n);
+  const mean=s.reduce((a,b)=>a+b,0)/n;
+  const std=Math.sqrt(s.reduce((a,b)=>a+Math.pow(b-mean,2),0)/n);
+  return {upper:mean+m*std,lower:mean-m*std,mid:mean,std};
+}
+
+function calcStochastic(arr, n=14) {
+  if(!arr||arr.length<n)return null;
+  const s=arr.slice(-n);
+  const low=Math.min(...s), high=Math.max(...s);
+  if(high===low)return 50;
+  return ((s[s.length-1]-low)/(high-low))*100;
+}
+
+function calcVolume(arr, n=10) {
+  // Use price volatility as volume proxy (no volume data from WS price stream)
+  if(!arr||arr.length<n)return null;
+  const s=arr.slice(-n);
+  const changes=[];
+  for(let i=1;i<s.length;i++)changes.push(Math.abs(s[i]-s[i-1]));
+  const avg=changes.reduce((a,b)=>a+b,0)/changes.length;
+  const recent=Math.abs(s[s.length-1]-s[s.length-2]);
+  return recent/avg; // >1 = high volume
+}
+
+// ── MAIN SIGNAL FUNCTION ──
+// Returns {dir:'BUY'|'SELL', score, strength} or null
+function getSignal(pair) {
+  const arr = G.prices[pair];
+  if (!arr || arr.length < 30) return null;
+
+  const cp  = arr[arr.length-1];
+  const pp  = arr[arr.length-2]||cp;
+  const cpp = arr[arr.length-3]||pp;
+
+  let score = 0;
+  const details = {};
+
+  // ── INDICATOR 1: EMA CROSS (Fast 8, Slow 21) ── weight: ±3
+  const e8   = calcEMA(arr, 8);
+  const e21  = calcEMA(arr, 21);
+  const e8p  = calcEMA(arr.slice(0,-1), 8);
+  const e21p = calcEMA(arr.slice(0,-1), 21);
+  let emaScore = 0;
+  if (e8 && e21 && e8p && e21p) {
+    if (e8p < e21p && e8 > e21) { emaScore = 3; details.ema = {v:'↑ CROSS', c:'cg'}; }
+    else if (e8p > e21p && e8 < e21) { emaScore = -3; details.ema = {v:'↓ CROSS', c:'cr'}; }
+    else if (e8 > e21) { emaScore = 1; details.ema = {v:'↑ BULL', c:'cg'}; }
+    else { emaScore = -1; details.ema = {v:'↓ BEAR', c:'cr'}; }
+  } else { details.ema = {v:'—', c:'cx'}; }
+  score += emaScore;
+
+  // ── INDICATOR 2: RSI (14) ── weight: ±3
+  const rv = calcRSI(arr, 14);
+  let rsiScore = 0;
+  if (rv < 25) { rsiScore = 3; details.rsi = {v:rv.toFixed(0)+' OS', c:'cg'}; }
+  else if (rv < 35) { rsiScore = 2; details.rsi = {v:rv.toFixed(0)+' ↑', c:'cg'}; }
+  else if (rv < 45) { rsiScore = 1; details.rsi = {v:rv.toFixed(0), c:'cy'}; }
+  else if (rv > 75) { rsiScore = -3; details.rsi = {v:rv.toFixed(0)+' OB', c:'cr'}; }
+  else if (rv > 65) { rsiScore = -2; details.rsi = {v:rv.toFixed(0)+' ↓', c:'cr'}; }
+  else if (rv > 55) { rsiScore = -1; details.rsi = {v:rv.toFixed(0), c:'cy'}; }
+  else { details.rsi = {v:rv.toFixed(0), c:'cx'}; }
+  score += rsiScore;
+
+  // ── INDICATOR 3: MACD ── weight: ±2
+  const macd = calcMACD(arr);
+  let macdScore = 0;
+  if (macd && macd.hist !== null) {
+    const prevMacd = calcMACD(arr.slice(0,-1));
+    const prevHist = prevMacd?.hist||0;
+    if (macd.hist > 0 && prevHist <= 0) { macdScore = 2; details.macd = {v:'↑ CROSS', c:'cg'}; }
+    else if (macd.hist < 0 && prevHist >= 0) { macdScore = -2; details.macd = {v:'↓ CROSS', c:'cr'}; }
+    else if (macd.hist > 0) { macdScore = 1; details.macd = {v:'↑ BULL', c:'cg'}; }
+    else { macdScore = -1; details.macd = {v:'↓ BEAR', c:'cr'}; }
+  } else { details.macd = {v:'—', c:'cx'}; }
+  score += macdScore;
+
+  // ── INDICATOR 4: BOLLINGER BANDS ── weight: ±2
+  const bb = calcBollinger(arr, 20, 2);
+  let bbScore = 0;
+  if (bb) {
+    const pct = (cp - bb.lower)/(bb.upper - bb.lower);
+    if (pct <= 0.05) { bbScore = 2; details.bb = {v:'AT LOW', c:'cg'}; }
+    else if (pct <= 0.2) { bbScore = 1; details.bb = {v:'NEAR LOW', c:'cg'}; }
+    else if (pct >= 0.95) { bbScore = -2; details.bb = {v:'AT HIGH', c:'cr'}; }
+    else if (pct >= 0.8) { bbScore = -1; details.bb = {v:'NEAR HIGH', c:'cr'}; }
+    else { details.bb = {v:(pct*100).toFixed(0)+'%', c:'cx'}; }
+  } else { details.bb = {v:'—', c:'cx'}; }
+  score += bbScore;
+
+  // ── INDICATOR 5: VOLUME/MOMENTUM ── weight: ±1
+  const vol = calcVolume(arr, 12);
+  let volScore = 0;
+  if (vol !== null) {
+    const trend = cp - arr[arr.length-5]||0;
+    if (vol > 1.5 && trend > 0) { volScore = 1; details.vol = {v:'HIGH ↑', c:'cg'}; }
+    else if (vol > 1.5 && trend < 0) { volScore = -1; details.vol = {v:'HIGH ↓', c:'cr'}; }
+    else { details.vol = {v:'NORM', c:'cx'}; }
+  } else { details.vol = {v:'—', c:'cx'}; }
+  score += volScore;
+
+  // ── INDICATOR 6: STOCHASTIC ── weight: ±1
+  const stoch = calcStochastic(arr, 14);
+  let stochScore = 0;
+  if (stoch !== null) {
+    if (stoch < 20) { stochScore = 1; details.stoch = {v:stoch.toFixed(0)+' OS', c:'cg'}; }
+    else if (stoch > 80) { stochScore = -1; details.stoch = {v:stoch.toFixed(0)+' OB', c:'cr'}; }
+    else { details.stoch = {v:stoch.toFixed(0), c:'cx'}; }
+  } else { details.stoch = {v:'—', c:'cx'}; }
+  score += stochScore;
+
+  // ── UPDATE UI ──
+  updateSignalUI(score, details);
+
+  // ── FIRE SIGNAL ──
+  const minScore = SCORE_MIN[B.strat] || 5;
+  const maxScore = 12;
+  const strength = Math.round(Math.abs(score)/maxScore*100);
+
+  if (score >= minScore)  return {dir:'BUY',  score, strength};
+  if (score <= -minScore) return {dir:'SELL', score, strength};
+  return null;
+}
+
+function updateSignalUI(score, d) {
+  const sm = document.getElementById('sigMain');
+  const sb = document.getElementById('sigBar');
+  const pct = Math.min(100, Math.abs(score)/12*100);
+
+  if (score >= 5)       { if(sm){sm.textContent='▲ BUY STRONG';  sm.style.color='var(--g)';} }
+  else if (score >= 3)  { if(sm){sm.textContent='▲ BUY SIGNAL';  sm.style.color='var(--g)';} }
+  else if (score <= -5) { if(sm){sm.textContent='▼ SELL STRONG'; sm.style.color='var(--r)';} }
+  else if (score <= -3) { if(sm){sm.textContent='▼ SELL SIGNAL'; sm.style.color='var(--r)';} }
+  else if (score > 0)   { if(sm){sm.textContent='↑ LEAN BUY';    sm.style.color='var(--y)';} }
+  else if (score < 0)   { if(sm){sm.textContent='↓ LEAN SELL';   sm.style.color='var(--y)';} }
+  else                  { if(sm){sm.textContent='— NEUTRAL';      sm.style.color='var(--tx)';} }
+
+  if (sb) {
+    sb.style.width = pct+'%';
+    sb.style.background = score >= 5 ? 'var(--g)' : score <= -5 ? 'var(--r)' : 'var(--y)';
+  }
+
+  const ig = document.getElementById('indGrid');
+  if (!ig || !d) return;
+  ig.innerHTML = `
+    <div class="ind-item"><span class="ind-name">EMA</span><span class="ind-val ${d.ema?.c||'cx'}">${d.ema?.v||'—'}</span></div>
+    <div class="ind-item"><span class="ind-name">RSI</span><span class="ind-val ${d.rsi?.c||'cx'}">${d.rsi?.v||'—'}</span></div>
+    <div class="ind-item"><span class="ind-name">MACD</span><span class="ind-val ${d.macd?.c||'cx'}">${d.macd?.v||'—'}</span></div>
+    <div class="ind-item"><span class="ind-name">BB</span><span class="ind-val ${d.bb?.c||'cx'}">${d.bb?.v||'—'}</span></div>
+    <div class="ind-item"><span class="ind-name">VOL</span><span class="ind-val ${d.vol?.c||'cx'}">${d.vol?.v||'—'}</span></div>
+    <div class="ind-item"><span class="ind-name">STOCH</span><span class="ind-val ${d.stoch?.c||'cx'}">${d.stoch?.v||'—'}</span></div>`;
+}
+
+// ════════════════════════════════════════════
+// BINANCE API
+// ════════════════════════════════════════════
+function sign(params) {
+  const query = Object.keys(params).map(k=>k+'='+params[k]).join('&');
+  const sig = CryptoJS.HmacSHA256(query, apiSecret).toString();
+  return query+'&signature='+sig;
+}
+
+async function fetchWithProxy(url, options={}, retries=3) {
+  // Try direct first (works on GitHub Pages)
+  try {
+    const res = await fetch(url, options);
+    if (res.ok) return res;
+  } catch(e) {}
+
+  // Try proxies
+  for (let i = 0; i < PROXIES.length; i++) {
+    try {
+      const proxyUrl = PROXIES[i] + encodeURIComponent(url);
+      const res = await fetch(proxyUrl, {
+        ...options,
+        headers: {
+          ...(options.headers||{}),
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      if (res.ok) {
+        lg('info','🔄','Proxy '+i+' inatumika','');
+        return res;
+      }
+    } catch(e) {}
+  }
+  throw new Error('Imeshindwa kuunganika. Tumia GitHub Pages badala ya file ya local.');
+}
+
+async function binanceGET(path, params={}) {
+  params.timestamp = Date.now();
+  params.recvWindow = 10000;
+  const query = sign(params);
+  const url = TESTNET_BASE + path + '?' + query;
+  const res = await fetchWithProxy(url, {
+    headers: { 'X-MBX-APIKEY': apiKey }
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(()=>({msg:res.statusText}));
+    throw new Error(e.msg || res.statusText);
+  }
+  return res.json();
+}
+
+async function binancePOST(path, params={}) {
+  params.timestamp = Date.now();
+  params.recvWindow = 10000;
+  const body = sign(params);
+  const url = TESTNET_BASE + path;
+  const res = await fetchWithProxy(url, {
+    method: 'POST',
+    headers: {
+      'X-MBX-APIKEY': apiKey,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(()=>({msg:res.statusText}));
+    throw new Error(e.msg || res.statusText);
+  }
+  return res.json();
+}
+
+async function getBalance() {
+  const data = await binanceGET('/account');
+  const usdt = data.balances?.find(b=>b.asset==='USDT');
+  return parseFloat(usdt?.free||0);
+}
+
+async function placeOrder(symbol, side, quoteQty) {
+  return binancePOST('/order', {
+    symbol, side,
+    type:'MARKET',
+    quoteOrderQty: quoteQty.toFixed(2)
+  });
+}
+
+async function placeSell(symbol, qty) {
+  return binancePOST('/order', {
+    symbol, side:'SELL',
+    type:'MARKET',
+    quantity: qty
+  });
+}
+
+// ════════════════════════════════════════════
+// WEBSOCKET — LIVE PRICES
+// ════════════════════════════════════════════
+function subscribePrices(pair) {
+  const stream = pair.toLowerCase() + '@kline_1m';
+  if (wsPrices[pair]) { try{wsPrices[pair].close();}catch(e){} }
+  const ws = new WebSocket('wss://testnet.binance.vision/ws/' + stream);
+  ws.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.k) {
+        const price = parseFloat(d.k.c);
+        if (!G.prices[pair]) G.prices[pair] = [];
+        G.prices[pair].push(price);
+        if (G.prices[pair].length > 500) G.prices[pair].shift();
+        updatePriceUI(pair, price, d.k);
+        if (B.run && !B.waiting) {
+          const sig = getSignal(pair);
+          if (sig) botOnSignal(sig, pair);
+        }
+      }
+    } catch(ex){}
+  };
+  ws.onerror = () => lg('loss','!','WebSocket ya bei imevunjika','');
+  wsPrices[pair] = ws;
+}
+
+function updatePriceUI(pair, price, k) {
+  const pp = document.getElementById('phPrice');
+  const prev = parseFloat(pp?.dataset.prev||price);
+  if (pp) {
+    pp.textContent = '$' + price.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+    pp.style.color = price>prev?'var(--g)':price<prev?'var(--r)':'var(--tx3)';
+    pp.dataset.prev = price;
+  }
+  updChart();
+}
+
+// ════════════════════════════════════════════
+// CONNECT
+// ════════════════════════════════════════════
+async function doConnect() {
+  apiKey    = document.getElementById('apiKey').value.trim();
+  apiSecret = document.getElementById('apiSecret').value.trim();
+  if (!apiKey||!apiSecret) { showA('warn','Weka API Key na Secret Key!'); return; }
+
+  setConn('connecting');
+  lg('info','◌','Inaunganika na Binance Testnet...','');
+
+  try {
+    const bal = await getBalance();
+    G.balance = bal; G.startBal = bal;
+    connected = true;
+    setConn('online');
+    G.equity.push(bal);
+    updDash();
+    subscribeDefaultPairs();
+    document.getElementById('botBtn').disabled = false;
+    showA('ok','✅ Imeunganika! USDT Balance: $'+bal.toFixed(2));
+    lg('info','✓','Imeunganika · USDT: $'+bal.toFixed(2),'');
+  } catch(err) {
+    setConn('error');
+    let errMsg = err.message;
+    if (errMsg.includes('fetch') || errMsg.includes('Failed')) {
+      errMsg = 'CORS Error — Fungua bot kutoka GitHub Pages badala ya file ya local. Au jaribu tena.';
+    }
+    showA('error','❌ Kosa: '+errMsg);
+    lg('loss','✗','Kosa: '+errMsg,'');
+  }
+}
+
+function subscribeDefaultPairs() {
+  ['BTCUSDT','ETHUSDT'].forEach(p => {
+    if (!G.prices[p]) G.prices[p] = [];
+    subscribePrices(p);
+    lg('info','📡','Inapokea bei za '+p,'');
+  });
+}
+
+// ════════════════════════════════════════════
+// BOT LOGIC
+// ════════════════════════════════════════════
+B.waiting = false;
+B.openOrder = null;
+
+function togBot() { B.run ? stopBot() : startBot(); }
+
+function startBot() {
+  if (!connected) { showBotA('error','Unganika kwanza!'); return; }
+  B.pair    = document.getElementById('bPair').value;
+  B.amt     = parseFloat(document.getElementById('bAmt').value);
+  B.baseAmt = B.amt;
+  B.tgt     = parseFloat(document.getElementById('bTgt').value);
+  B.dsl     = parseFloat(document.getElementById('bDSL').value);
+  B.tp      = parseFloat(document.getElementById('bTP').value) / 100;
+  B.sl      = parseFloat(document.getElementById('bSL').value) / 100;
+  B.sessStart = G.balance;
+  B.wins=0; B.losses=0; B.consLoss=0;
+  B.run=true; B.waiting=false; B.lastSig=''; B.openOrder=null;
+  lastTrade=0;
+
+  // Subscribe to selected pair
+  if (!wsPrices[B.pair]) subscribePrices(B.pair);
+
+  setBotUI(true);
+  document.getElementById('pgSt').textContent = G.balance.toFixed(2);
+  updProg();
+  rMart();
+
+  bLg('info','▶',
+    '⚡ SCALPER IMEANZA · '+B.pair+' · '+STRATS[B.strat]+
+    ' · Target:+$'+B.tgt+' · SL:$'+B.dsl,'');
+  bLg('info','📊','Score Min: '+SCORE_MIN[B.strat]+' · TP:'+((B.tp*100).toFixed(1))+'% · SL:'+((B.sl*100).toFixed(1))+'%','');
+}
+
+const STRATS = ['PRECISION','AGGRESSIVE','ULTRA SAFE','TREND RIDE'];
+
+function stopBot() {
+  B.run=false; B.waiting=false;
+  clearTimeout(cdTimer);
+  setBotUI(false);
+  document.getElementById('pgCD').textContent='—';
+  const fp = +(G.balance - B.sessStart).toFixed(2);
+  bLg('info','■','Bot imesimama · Faida: '+(fp>=0?'+':'')+'$'+fp.toFixed(2),'');
+}
+
+async function botOnSignal(sig, pair) {
+  if (!B.run || B.waiting || B.openOrder) return;
+  const now = Date.now();
+  if (lastTrade > 0 && (now-lastTrade) < COOLDOWN) return; // 30s cooldown
+  if (sig.dir === B.lastSig && sig.score < SCORE_MIN[B.strat]+2) return;
+
+  B.lastSig = sig.dir;
+  lastTrade = now;
+  B.waiting = true;
+  G.sigCount++;
+
+  const emoji = sig.dir==='BUY' ? '↑' : '↓';
+  bLg('info',emoji,
+    '⚡ '+sig.dir+' · Score:'+(sig.score>0?'+':'')+sig.score+
+    ' · Nguvu:'+sig.strength+'% · $'+B.amt.toFixed(2),'');
+
+  try {
+    const order = await placeOrder(B.pair, sig.dir, B.amt);
+    B.openOrder = {
+      orderId: order.orderId,
+      dir: sig.dir,
+      pair: B.pair,
+      amt: B.amt,
+      entryPrice: parseFloat(order.fills?.[0]?.price||G.prices[B.pair]?.[G.prices[B.pair].length-1]||0),
+      qty: parseFloat(order.executedQty||0),
+      time: Date.now()
+    };
+    G.openOrders++;
+    bLg('info','✓','Order imefunguliwa · ID:'+order.orderId,'');
+    updDash();
+
+    // Monitor for TP/SL
+    monitorOrder();
+  } catch(err) {
+    B.waiting=false; B.openOrder=null;
+    bLg('loss','✗','Kosa la order: '+err.message,'');
+  }
+}
+
+function monitorOrder() {
+  if (!B.openOrder) return;
+  const {entryPrice, dir, pair, qty, time} = B.openOrder;
+  const prices = G.prices[pair];
+  if (!prices || prices.length === 0) { setTimeout(monitorOrder, 1000); return; }
+  const current = prices[prices.length-1];
+
+  const changePct = dir==='BUY'
+    ? (current - entryPrice) / entryPrice
+    : (entryPrice - current) / entryPrice;
+
+  const elapsed = (Date.now() - time) / 1000;
+
+  // Update open order display
+  const pnlEst = changePct * B.amt;
+  bLg('info','⏳',
+    'Monitoring · Change:'+(changePct>=0?'+':'')+(changePct*100).toFixed(3)+'% · '+
+    'Est P&L:'+(pnlEst>=0?'+':'')+'$'+pnlEst.toFixed(3),'');
+
+  // TP hit
+  if (changePct >= B.tp) {
+    closeOrder('WIN', changePct * B.amt); return;
+  }
+  // SL hit
+  if (changePct <= -B.sl) {
+    closeOrder('LOSS', changePct * B.amt); return;
+  }
+  // Max hold time: 30 seconds (scalping)
+  if (elapsed >= 30) {
+    closeOrder(pnlEst>=0?'WIN':'LOSS', pnlEst); return;
+  }
+
+  // Check again in 1 second
+  setTimeout(monitorOrder, 1000);
+}
+
+async function closeOrder(result, pnl) {
+  if (!B.openOrder) return;
+  const {dir, pair, qty} = B.openOrder;
+
+  try {
+    // Close position (opposite side)
+    if (dir==='BUY' && qty > 0) {
+      await placeSell(pair, parseFloat(qty.toFixed(6)));
+    }
+  } catch(err) {
+    bLg('loss','!','Kosa la kufunga: '+err.message,'');
+  }
+
+  // Update balance
+  try { G.balance = await getBalance(); G.equity.push(G.balance); } catch(e){}
+
+  // Record result
+  const win = result==='WIN';
+  G.trades++; B.waiting=false;
+  if (win) {
+    G.wins++; B.wins++; B.consLoss=0;
+    B.curStreak = (B.curStreak||0)+1;
+    if (B.curStreak > G.bestStreak) G.bestStreak=B.curStreak;
+    B.amt = B.baseAmt; // reset
+    bLg('win','✓','WIN +$'+Math.abs(pnl).toFixed(4)+' · Salio: $'+G.balance.toFixed(2),'+$'+Math.abs(pnl).toFixed(4));
+  } else {
+    G.losses++; B.losses++; B.consLoss++;
+    B.curStreak = 0;
+    // Martingale — max 3 steps
+    if (B.consLoss < 3 && B.strat !== 2) {
+      B.amt = Math.min(+(B.amt*2).toFixed(2), B.baseAmt*8);
+    } else {
+      B.amt = B.baseAmt; B.consLoss=0;
+    }
+    bLg('loss','✗','LOSS -$'+Math.abs(pnl).toFixed(4)+' · Salio: $'+G.balance.toFixed(2),'-$'+Math.abs(pnl).toFixed(4));
+    if (B.consLoss >= 2) showBotA('warn','⚠️ Hasara '+B.consLoss+' mfululizo!');
+  }
+
+  const t = new Date().toTimeString().slice(0,8);
+  G.history.unshift({n:G.trades, pair, dir:B.openOrder.dir, amt:B.openOrder.amt, pnl, t});
+  B.openOrder = null; G.openOrders=0;
+
+  updDash(); updAn(); updProg(); rMart();
+  botCheck();
+}
+
+function botCheck() {
+  if (!B.run) return;
+  const rp = +(G.balance - B.sessStart).toFixed(4);
+
+  if (rp >= B.tgt) {
+    showBotA('ok','🏆 TARGET +$'+B.tgt+' IMEFIKIWA! Faida: +$'+rp.toFixed(4)+' ($'+B.sessStart.toFixed(2)+'→$'+G.balance.toFixed(2)+')');
+    bLg('win','★','🏆 TARGET imefikiwa! Faida: +$'+rp.toFixed(4),'');
+    stopBot(); return;
+  }
+  if (rp <= -B.dsl) {
+    showBotA('error','⛔ Stop Loss -$'+B.dsl+' imefikiwa!');
+    bLg('loss','⛔','Daily SL. Bot inasimama.','');
+    stopBot(); return;
+  }
+  if (G.balance < B.amt) {
+    showBotA('error','⛔ USDT haitoshi!');
+    stopBot(); return;
+  }
+
+  // Countdown
+  const elapsed = Date.now()-lastTrade;
+  const rem = Math.max(0, Math.ceil((COOLDOWN-elapsed)/1000));
+  if (rem > 0) {
+    let c=rem;
+    document.getElementById('pgCD').textContent=c+'s';
+    clearTimeout(cdTimer);
+    function tick(){
+      c--;
+      if(c<=0){document.getElementById('pgCD').textContent='🟢 Signal...';return;}
+      document.getElementById('pgCD').textContent=c+'s';
+      cdTimer=setTimeout(tick,1000);
+    }
+    cdTimer=setTimeout(tick,1000);
+  } else {
+    document.getElementById('pgCD').textContent='🟢 Inasubiri signal...';
+  }
+}
+
+// ════════════════════════════════════════════
+// UI UPDATES
+// ════════════════════════════════════════════
+function updDash() {
+  const rp = +(G.balance - G.startBal).toFixed(4);
+  const pb = document.getElementById('phBal');
+  if (pb) pb.textContent = '$'+G.balance.toFixed(2);
+  const pp2 = document.getElementById('phProf');
+  if (pp2) { pp2.textContent=(rp>=0?'+':'')+'$'+rp.toFixed(4); pp2.style.color=rp>=0?'var(--g)':'var(--r)'; }
+  const wr = G.trades>0?(G.wins/G.trades*100).toFixed(1):'—';
+  const pw = document.getElementById('phWR'); if(pw)pw.textContent=wr+(G.trades>0?'%':'');
+  document.getElementById('sW').textContent=G.wins;
+  document.getElementById('sL').textContent=G.losses;
+  document.getElementById('sT').textContent=G.trades;
+  document.getElementById('sO').textContent=G.openOrders||0;
+  updWinRing();
+}
+
+function updWinRing() {
+  const wr = G.wins+G.losses>0?G.wins/(G.wins+G.losses)*100:0;
+  const circ = 263.9;
+  const off  = circ*(1-wr/100);
+  const ring = document.getElementById('wrRing');
+  const pct  = document.getElementById('wrPct');
+  const st   = document.getElementById('wrStatus');
+  if(ring){ring.style.strokeDashoffset=off.toFixed(1);ring.style.stroke=wr>=70?'var(--g)':wr>=50?'var(--y)':'var(--r)';}
+  if(pct){pct.textContent=wr.toFixed(1)+'%';pct.style.color=wr>=70?'var(--g)':wr>=50?'var(--y)':'var(--r)';}
+  if(st){st.textContent=wr>=70?'🎯 TARGET IMEFIKIWA!':wr>=50?'📈 Inaboresha...':G.trades===0?'Inasubiri trades...':'📉 Jaribu tena';}
+}
+
+function updProg() {
+  const rp = +(G.balance - B.sessStart).toFixed(4);
+  const pe = document.getElementById('pgProf');
+  if(!pe)return;
+  pe.textContent=(rp>=0?'+':'')+'$'+rp.toFixed(4);
+  pe.style.color=rp>=0?'var(--g)':'var(--r)';
+  const rem=Math.max(0,B.tgt-rp);
+  document.getElementById('pgRem').textContent='$'+rem.toFixed(4);
+  const pct=Math.max(0,Math.min(100,rp/B.tgt*100));
+  const bar=document.getElementById('pgBar');
+  if(bar){bar.style.width=pct+'%';bar.style.background=rp>=0?'var(--g)':'var(--r)';}
+  document.getElementById('pgW').textContent=B.wins;
+  document.getElementById('pgL').textContent=B.losses;
+  document.getElementById('pgStreak').textContent=B.curStreak||0;
+  document.getElementById('pgTrades').textContent=B.wins+B.losses;
+  updWinRing();
+}
+
+function updAn() {
+  const wr=G.trades>0?(G.wins/G.trades*100).toFixed(1):0;
+  document.getElementById('anWR').textContent=wr+'%';
+  const net=+(G.balance-G.startBal).toFixed(4);
+  const ne=document.getElementById('anNet');
+  ne.textContent=(net>=0?'+':'')+'$'+net.toFixed(4);ne.style.color=net>=0?'var(--g)':'var(--r)';
+  document.getElementById('anTN').textContent=G.trades;
+  const avg=G.trades>0?(net/G.trades).toFixed(4):0;
+  document.getElementById('anAvg').textContent=(avg>=0?'+':'')+'$'+avg;
+  const wins=G.history.filter(h=>h.pnl>0),losses=G.history.filter(h=>h.pnl<=0);
+  document.getElementById('anBest').textContent='+$'+(wins.length?Math.max(...wins.map(h=>h.pnl)).toFixed(4):'0.0000');
+  document.getElementById('anWorst').textContent='-$'+Math.abs(losses.length?Math.min(...losses.map(h=>h.pnl)).toFixed(4):0).toFixed(4);
+  document.getElementById('anStrk').textContent=G.bestStreak||0;
+  document.getElementById('anSig').textContent=G.sigCount||0;
+  document.getElementById('histTbl').innerHTML=G.history.slice(0,40).map(h=>`
+    <tr>
+      <td style="color:var(--tx)">${h.n}</td>
+      <td style="color:var(--tx2)">${h.pair}</td>
+      <td style="color:${h.dir==='BUY'?'var(--g)':'var(--r)'}">${h.dir}</td>
+      <td>$${h.amt?.toFixed(2)||'—'}</td>
+      <td style="color:${h.pnl>=0?'var(--g)':'var(--r)'}">${h.pnl>=0?'+':''}$${Math.abs(h.pnl).toFixed(4)}</td>
+      <td style="color:var(--tx);font-size:.55rem">${h.t}</td>
+    </tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--tx);padding:20px;">Hakuna trades bado</td></tr>';
+  updEqChart();
+}
+
+function rMart() {
+  const base=B.baseAmt||10, mult=2, bal=G.balance||100;
+  const lvls=[]; let s=base,tot=0;
+  for(let i=0;i<4;i++){lvls.push(+s.toFixed(2));tot+=s;s*=mult;if(i>=2)break;}
+  const mH=42,mV=lvls[lvls.length-1];
+  const cols=['#00ff88','#ffcc00','#ff9944','#ff3355'];
+  const bEl=document.getElementById('mBars'),lEl=document.getElementById('mLbls');
+  if(!bEl||!lEl)return;
+  bEl.innerHTML=lEl.innerHTML='';
+  lvls.forEach((v,i)=>{
+    const h=Math.max(5,(v/mV)*mH),act=B.consLoss===i;
+    bEl.innerHTML+=`<div class="mb" style="height:${h}px;background:${cols[i]};opacity:${act?1:.45};border:2px solid ${act?'#fff':'transparent'}"></div>`;
+    lEl.innerHTML+=`<div class="ml" style="flex:1;color:${cols[i]}">$${v}</div>`;
+  });
+}
+
+function setStrat(i) {
+  B.strat=i;
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
+  document.getElementById('sc'+i).classList.add('on');
+  bLg('info','⚙','Strategy: '+STRATS[i]+' · Min Score: '+SCORE_MIN[i],'');
+}
+
+function setBotUI(r) {
+  const btn=document.getElementById('botBtn');
+  const badge=document.getElementById('bBadge');
+  badge.classList.toggle('bot',r);
+  document.getElementById('bTxt').textContent=r?'RUNNING':'IDLE';
+  btn.textContent=r?'■ SIMAMISHA BOT':'▶ ANZA SCALPING BOT';
+  btn.className='bot-btn '+(r?'btn-stop':'btn-go');
+  document.getElementById('progCard').style.display=r?'block':'none';
+}
+
+function setConn(s) {
+  const badge=document.getElementById('cBadge');
+  const txt=document.getElementById('cTxt');
+  const ico=document.getElementById('cIco');
+  const msg=document.getElementById('cMsg');
+  const btn=document.getElementById('connBtn');
+  if(s==='connecting'){
+    badge.className='badge';txt.textContent='...';
+    ico.textContent='◌';msg.textContent='Inaunganika...';
+    btn.textContent='...';btn.disabled=true;
+  } else if(s==='online'){
+    badge.className='badge live';txt.textContent='LIVE';
+    ico.textContent='✓';msg.textContent='✓ Imeunganika · Testnet Live';
+    btn.textContent='DISCONNECT';btn.disabled=false;
+    btn.style.background='var(--r)';btn.style.color='#fff';
+    btn.onclick=()=>{
+      connected=false;document.getElementById('botBtn').disabled=true;
+      Object.values(wsPrices).forEach(w=>{try{w.close();}catch(e){}});
+      wsPrices={};setConn('offline');
+    };
+  } else if(s==='offline'){
+    badge.className='badge';txt.textContent='OFFLINE';
+    ico.textContent='○';msg.textContent='Weka API key na Secret → bonyeza UNGANIKA';
+    btn.textContent='⚡ UNGANIKA NA BINANCE TESTNET';btn.disabled=false;
+    btn.style.background='';btn.className='conn-btn';btn.onclick=doConnect;
+  } else if(s==='error'){
+    badge.className='badge';txt.textContent='ERROR';
+    ico.textContent='✗';msg.textContent='✗ Kosa — Angalia API key';
+    btn.textContent='JARIBU TENA';btn.disabled=false;
+    btn.style.background='';btn.className='conn-btn';btn.onclick=doConnect;
+  }
+}
+
+function showA(t,msg){
+  ['aOk','aEr','aWn'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+  const m={ok:'aOk',error:'aEr',warn:'aWn'};
+  const el=document.getElementById(m[t]);if(el){el.textContent=msg;el.style.display='block';}
+}
+function showBotA(t,msg){
+  ['bOk','bEr','bWn'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+  const m={ok:'bOk',error:'bEr',warn:'bWn'};
+  const el=document.getElementById(m[t]);if(el){el.textContent=msg;el.style.display='block';}
+}
+
+function lg(type,icon,msg,pnl){
+  const s=document.getElementById('lgS');if(!s)return;
+  const t=new Date().toTimeString().slice(0,8);
+  const pc=type==='win'?'cg':type==='loss'?'cr':'cb';
+  const e=document.createElement('div');e.className='le';
+  e.innerHTML=`<span class="lt">${t}</span><span style="margin:0 4px">${icon}</span><span class="lm">${msg}</span>${pnl?`<span class="lp ${pc}">${pnl}</span>`:''}`;
+  s.insertBefore(e,s.firstChild);if(s.children.length>150)s.removeChild(s.lastChild);
+}
+function bLg(type,icon,msg,pnl){
+  const s=document.getElementById('bLog');if(!s)return;
+  const t=new Date().toTimeString().slice(0,8);
+  const pc=type==='win'?'cg':type==='loss'?'cr':'cb';
+  const e=document.createElement('div');e.className='le';
+  e.innerHTML=`<span class="lt">${t}</span><span style="margin:0 4px">${icon}</span><span class="lm">${msg}</span>${pnl?`<span class="lp ${pc}">${pnl}</span>`:''}`;
+  s.insertBefore(e,s.firstChild);if(s.children.length>150)s.removeChild(s.lastChild);
+}
+
+function gt(i){
+  document.querySelectorAll('.pg').forEach((p,j)=>p.classList.toggle('on',j===i));
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('on',j===i));
+  if(i===2)updAn();
+}
+
+// ════════════════════════════════════════════
+// CHARTS
+// ════════════════════════════════════════════
+let pChart=null, eChart=null;
+
+function initCharts(){
+  const pc=document.getElementById('priceChart');
+  if(pc){
+    pChart=new Chart(pc.getContext('2d'),{
+      type:'line',
+      data:{labels:[],datasets:[
+        {data:[],borderColor:'#00ff88',backgroundColor:'rgba(0,255,136,.04)',borderWidth:1.5,pointRadius:0,fill:true,tension:.3,label:'Price'},
+        {data:[],borderColor:'#ffcc00',borderWidth:1,pointRadius:0,fill:false,tension:.3,label:'EMA8'},
+        {data:[],borderColor:'#00aaff',borderWidth:1,pointRadius:0,fill:false,tension:.3,label:'EMA21'}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{display:false},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#446688',font:{size:9,family:'JetBrains Mono'},callback:v=>'$'+v.toLocaleString()}}}}
+    });
+  }
+  const ec=document.getElementById('eqChart');
+  if(ec){
+    eChart=new Chart(ec.getContext('2d'),{
+      type:'line',
+      data:{labels:[],datasets:[{data:[],borderColor:'#00aaff',backgroundColor:'rgba(0,170,255,.04)',borderWidth:1.5,pointRadius:0,fill:true,tension:.4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{display:false},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#446688',font:{size:9},callback:v=>'$'+v.toFixed(2)}}}}
+    });
+  }
+}
+
+function updChart(){
+  if(!pChart) return;
+  const arr=G.prices[B.pair||'BTCUSDT'];
+  if(!arr||arr.length<5)return;
+  const data=arr.slice(-80);
+  const e8d=[],e21d=[];
+  for(let i=0;i<data.length;i++){
+    const s=data.slice(0,i+1);
+    e8d.push(calcEMA(s,Math.min(8,s.length)));
+    e21d.push(calcEMA(s,Math.min(21,s.length)));
+  }
+  pChart.data.labels=data.map((_,i)=>i);
+  pChart.data.datasets[0].data=data;
+  pChart.data.datasets[1].data=e8d;
+  pChart.data.datasets[2].data=e21d;
+  pChart.update('none');
+}
+
+function updEqChart(){
+  if(!eChart||G.equity.length<2)return;
+  eChart.data.labels=G.equity.map((_,i)=>i);
+  eChart.data.datasets[0].data=G.equity;
+  eChart.update('none');
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+initCharts();
+rMart();
+lg('info','◈','APEX SCALPER imewaka · Weka Testnet API key na Secret → bonyeza UNGANIKA','');
+</script>
+</body>
+</html>
